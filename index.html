@@ -104,8 +104,25 @@
     <div id="toast" class="toast"></div>
 
     <script>
-        // Create audio element with the cha-ching sound
-        const audio = new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAAFKgDl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAQUqxQ8cTgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//sQZAAP8AAAaQAAAAgAAA0gAAABAAABpAAAACAAADSAAAAETEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/+xBkGY/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//sQZDeP8AAAaQAAAAgAAA0gAAABAAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7EGRXj/AAAGkAAAAIAAANIAAAAQAAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//sQZHeP8AAAaQAAAAgAAA0gAAABAAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7EGSXj/AAAGkAAAAIAAANIAAAAQAAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//sQZLeP8AAAaQAAAAgAAA0gAAABAAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7EGTXkvAAAGkAAAAIAAANIAAAAQAAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV');
+        // Create audio elements with fallback sounds
+        const cashRegisterSound = 'https://assets.mixkit.co/active_storage/sfx/2648/2648-preview.mp3';
+        const backupSound = 'https://assets.mixkit.co/active_storage/sfx/888/888-preview.mp3';
+        
+        let audio = new Audio(cashRegisterSound);
+        
+        // Add error handling and fallback
+        audio.onerror = () => {
+            console.log('Primary sound failed, trying backup...');
+            audio = new Audio(backupSound);
+            
+            audio.onerror = () => {
+                console.log('Backup sound failed');
+                showToast('Sound playback failed. Check your browser settings.', 'error');
+            };
+        };
+
+        // Preload the sound
+        audio.load();
 
         let timeoutId = null;
         let countdownInterval = null;
@@ -165,7 +182,21 @@
         }
 
         function testSound() {
-            audio.play();
+            // Create a new promise to handle sound playing
+            const playSound = () => {
+                return audio.play().catch(error => {
+                    console.log('Playback failed:', error);
+                    showToast('Sound playback failed. Check if your browser allows audio.', 'error');
+                });
+            };
+            
+            // Try to play the sound
+            playSound();
+            
+            // Show success message if sound starts playing
+            audio.onplay = () => {
+                showToast('Playing cash register sound! 🔊');
+            };
         }
 
         function updateCountdown(targetDate) {
