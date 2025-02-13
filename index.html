@@ -104,21 +104,23 @@
     <div id="toast" class="toast"></div>
 
     <script>
-        // Create audio elements with fallback sounds
-        const cashRegisterSound = 'https://assets.mixkit.co/active_storage/sfx/2648/2648-preview.mp3';
-        const backupSound = 'https://assets.mixkit.co/active_storage/sfx/888/888-preview.mp3';
+        // Create audio element with WAV sound file
+        const audio = new Audio('cash-register.wav');
         
-        let audio = new Audio(cashRegisterSound);
-        
-        // Add error handling and fallback
-        audio.onerror = () => {
-            console.log('Primary sound failed, trying backup...');
-            audio = new Audio(backupSound);
-            
-            audio.onerror = () => {
-                console.log('Backup sound failed');
-                showToast('Sound playback failed. Check your browser settings.', 'error');
-            };
+        // Add detailed error handling
+        audio.onerror = (e) => {
+            console.error('Audio error details:', {
+                error: e,
+                code: audio.error ? audio.error.code : 'unknown',
+                message: audio.error ? audio.error.message : 'unknown',
+                src: audio.currentSrc
+            });
+            showToast('Sound failed to load. Check console for details.', 'error');
+        };
+
+        // Log when audio is successfully loaded
+        audio.onloadeddata = () => {
+            console.log('Audio file loaded successfully');
         };
 
         // Preload the sound
@@ -182,21 +184,25 @@
         }
 
         function testSound() {
-            // Create a new promise to handle sound playing
-            const playSound = () => {
-                return audio.play().catch(error => {
-                    console.log('Playback failed:', error);
-                    showToast('Sound playback failed. Check if your browser allows audio.', 'error');
-                });
-            };
+            // First, try to resume audio context (needed for some browsers)
+            if (audio.paused) {
+                audio.load();
+            }
             
-            // Try to play the sound
-            playSound();
-            
-            // Show success message if sound starts playing
-            audio.onplay = () => {
-                showToast('Playing cash register sound! 🔊');
-            };
+            audio.play().then(() => {
+                showToast('Playing sound! 🔊');
+                console.log('Sound played successfully');
+            }).catch((error) => {
+                console.error('Playback error:', error);
+                showToast('Try clicking anywhere on the page first, then try again', 'error');
+                
+                // Additional error details
+                if (error.name === 'NotAllowedError') {
+                    showToast('Browser blocked autoplay. Click anywhere on the page first.', 'error');
+                } else if (error.name === 'NotSupportedError') {
+                    showToast('Audio format not supported by your browser.', 'error');
+                }
+            });
         }
 
         function updateCountdown(targetDate) {
