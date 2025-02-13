@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Payday Chime</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        :root {
+            --teams-base: #201F1F;
+            --teams-primary: #6264A7;
+            --teams-secondary: #464775;
+            --teams-text: #FFFFFF;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #201F1F;
+            color: var(--teams-text);
+        }
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            max-width: 90%;
+            width: 500px;
+        }
+        button {
+            background-color: var(--teams-primary);
+            color: var(--teams-text);
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            margin: 8px;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: var(--teams-secondary);
+        }
+        .input-group {
+            margin: 20px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--teams-text);
+        }
+        input[type="datetime-local"] {
+            padding: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            font-size: 14px;
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--teams-text);
+        }
+        #status {
+            margin-top: 20px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+        #countdown {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--teams-primary);
+            margin-top: 15px;
+            text-shadow: 0 0 10px rgba(98, 100, 167, 0.5);
+        }
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 24px;
+            border-radius: 4px;
+            background: var(--teams-primary);
+            color: white;
+            display: none;
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💰 Payday Chime 💰</h1>
+        <div class="input-group">
+            <label for="paydateTime">Next Payday:</label>
+            <input type="datetime-local" id="paydateTime">
+        </div>
+        <button onclick="schedulePayday()">Schedule Payday Alert</button>
+        <button onclick="testSound()">Test Sound</button>
+        <div id="status">No payday scheduled</div>
+        <div id="countdown"></div>
+    </div>
+    <div id="toast" class="toast"></div>
+
+    <script>
+        // Create audio element with the cha-ching sound
+        const audio = new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAAFKgDl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAQUqxQ8cTgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//sQZAAP8AAAaQAAAAgAAA0gAAABAAABpAAAACAAADSAAAAETEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/+xBkGY/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//sQZDeP8AAAaQAAAAgAAA0gAAABAAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7EGRXj/AAAGkAAAAIAAANIAAAAQAAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//sQZHeP8AAAaQAAAAgAAA0gAAABAAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7EGSXj/AAAGkAAAAIAAANIAAAAQAAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//sQZLeP8AAAaQAAAAgAAA0gAAABAAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7EGTXkvAAAGkAAAAIAAANIAAAAQAAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV');
+
+        let timeoutId = null;
+        let countdownInterval = null;
+
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.style.display = 'block';
+            toast.style.backgroundColor = type === 'error' ? '#A4262C' : '#6264A7';
+            
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
+        }
+
+        function schedulePayday() {
+            const paydateTime = document.getElementById('paydateTime').value;
+            if (!paydateTime) {
+                showToast("Please select a date and time first!", "error");
+                return;
+            }
+
+            const paydate = new Date(paydateTime);
+            const now = new Date();
+
+            if (paydate <= now) {
+                showToast("Please select a future date and time!", "error");
+                return;
+            }
+
+            const timeUntilPayday = paydate - now;
+            
+            // Clear existing timers
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+            }
+            
+            // Start countdown
+            updateCountdown(paydate);
+            countdownInterval = setInterval(() => updateCountdown(paydate), 1000);
+
+            // Schedule the new alert
+            timeoutId = setTimeout(() => {
+                audio.play();
+                document.getElementById('status').innerHTML = '🎉 Payday! 🎉';
+                showToast("It's payday! 💰");
+            }, timeUntilPayday);
+
+            // Update status and save to localStorage
+            document.getElementById('status').innerHTML = 'Payday alert scheduled!';
+            localStorage.setItem('paydayTime', paydateTime);
+            
+            showToast("Payday alert scheduled!");
+        }
+
+        function testSound() {
+            audio.play();
+        }
+
+        function updateCountdown(targetDate) {
+            const now = new Date();
+            const timeLeft = targetDate - now;
+            
+            if (timeLeft <= 0) {
+                document.getElementById('countdown').innerHTML = '🎉 IT\'S PAYDAY! 🎉';
+                if (countdownInterval) {
+                    clearInterval(countdownInterval);
+                }
+                return;
+            }
+            
+            const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+            
+            document.getElementById('countdown').innerHTML = 
+                `${days}d ${hours}h ${minutes}m ${seconds}s until payday! 💰`;
+        }
+
+        function setDefaultPayday() {
+            const now = new Date();
+            let nextPayday = new Date(now.getFullYear(), now.getMonth(), 15);
+            
+            if (now.getDate() > 15) {
+                nextPayday = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            } else if (now.getDate() == 15 && now.getHours() >= 12) {
+                nextPayday = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            }
+            
+            nextPayday.setHours(12, 0, 0, 0);
+            
+            const dateString = nextPayday.toISOString().slice(0, 16);
+            document.getElementById('paydateTime').value = dateString;
+        }
+
+        // Initialize when the page loads
+        setDefaultPayday();
+
+        // Load saved date from localStorage if it exists
+        const savedPaydayTime = localStorage.getItem('paydayTime');
+        if (savedPaydayTime) {
+            document.getElementById('paydateTime').value = savedPaydayTime;
+            schedulePayday();
+        }
+    </script>
+</body>
+</html>
